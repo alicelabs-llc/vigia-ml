@@ -12,7 +12,7 @@
 [![Licencia](https://img.shields.io/badge/Licencia-AL--1.0-f28482.svg)](LICENSE-AL-1.0)
 [![CI](https://github.com/alicelabs-llc/vigia-ml/actions/workflows/ci.yml/badge.svg)](https://github.com/alicelabs-llc/vigia-ml/actions/workflows/ci.yml)
 [![Pruebas](https://img.shields.io/badge/pruebas-140%20pasando-3fb950)](#scripts)
-[![Release](https://img.shields.io/github/v/release/eddyflores100-lang/vigia-ml?label=versi%C3%B3n&sort=semver)](https://github.com/alicelabs-llc/vigia-ml/releases)
+[![Release](https://img.shields.io/github/v/release/alicelabs-llc/vigia-ml?label=versi%C3%B3n&sort=semver)](https://github.com/alicelabs-llc/vigia-ml/releases)
 [![Discussions](https://img.shields.io/badge/Discussions-bienvenida-8250df?logo=githubdiscussions)](https://github.com/alicelabs-llc/vigia-ml/discussions)
 
 *Pronóstico LSTM · Detección de anomalías con autoencoder · Clasificación de fallas con red neuronal — todo entrena y ejecuta **en vivo** en tu navegador, sin servidor.*
