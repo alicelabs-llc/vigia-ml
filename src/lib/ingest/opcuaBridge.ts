@@ -16,7 +16,8 @@ export type TagMap = Record<VarKey, string>;
 
 /** Muestra cruda de la fuente (solo variables presentes y finitas). */
 export interface IngestSample {
-  ts: number; // epoch ms del dato en origen
+  ts: number; // epoch ms usado para agrupar por minuto
+  timestampOrigin?: "source" | "receive";
   values: Partial<Record<VarKey, number>>;
 }
 
@@ -60,6 +61,7 @@ type DataCb = (s: IngestSample) => void;
 interface Frame {
   op?: string;
   ts?: number;
+  timestampOrigin?: "source" | "receive";
   values?: Record<string, unknown>;
   state?: string;
   msg?: string;
@@ -227,7 +229,11 @@ export class OpcuaBridgeSource implements SourceAdapter {
       values[key] = num;
       any = true;
     }
-    return any ? { ts: typeof f.ts === "number" ? f.ts : Date.now(), values } : null;
+    return any ? {
+      ts: typeof f.ts === "number" ? f.ts : Date.now(),
+      timestampOrigin: f.timestampOrigin === "source" ? "source" : "receive",
+      values,
+    } : null;
   }
 
   private startHeartbeat() {
