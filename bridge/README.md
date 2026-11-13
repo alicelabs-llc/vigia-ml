@@ -17,7 +17,7 @@ El navegador **no puede hablar el protocolo binario OPC-UA** (TCP 4840, codifica
 | puente → consola | `{"op":"data","ts":...,"values":{"ns=2;s=Well.PT":123.4}}` | lecturas etiquetadas por NodeId; `ts` usa timestamp de origen cuando existe |
 | puente → consola | `{"op":"status","state":"degraded","msg":"..."}` | fuente degradada |
 | puente → consola | `{"op":"error","msg":"..."}` | error de lectura |
-| consola → puente | `{"op":"subscribe","tags":{"pt":"PT-101",...},"intervalMs":15000}` | mapa de variables |
+| consola → puente | `{"op":"subscribe","tags":{"pt":"ns=2;s=Well.PT",...},"intervalMs":15000}` | mapa de variables |
 
 El puente descarta lecturas OPC-UA con calidad no válida y valores no numéricos/no finitos antes de emitirlas. El cliente vuelve a sanear cada muestra antes de incorporarla al buffer.
 
@@ -66,13 +66,12 @@ de choke. El cliente descarta nodos fuera del mapa.
 
 ### Variables de entorno equivalentes
 
-`OPC_ENDPOINT`, `TAGMAP_FILE` (o `TAGS` como JSON), `WS_PORT`, `WS_HOST`, `VIGIA_DEMO=1`.
+`OPC_ENDPOINT`, `TAGMAP_FILE` (o `TAGS` como JSON), `WS_PORT`, `VIGIA_DEMO=1`. El host permanece limitado a loopback; usa un proxy seguro para acceso remoto.
 
 ## Seguridad (léelo antes de producción)
 
 - El puente escucha por defecto solo en `127.0.0.1`; esto evita publicar un socket SCADA en todas las interfaces por accidente.
-- No cambies `WS_HOST`/ `--host` a una interfaz de red salvo que exista un diseño de acceso aprobado. Nunca expongas el puente directamente a Internet.
-- Para acceso desde otra máquina, usa una VPN o un reverse proxy con `wss://` (TLS), autenticación y reglas de firewall. No basta con cambiar el host.
+- El puente rechaza cualquier host que no sea loopback. Para acceso desde otra máquina, usa un reverse proxy local con `wss://` (TLS), autenticación y reglas de firewall, o una VPN que termine en ese proxy. No expongas el proceso Node directamente.
 - Proporciona `OPC_ENDPOINT` mediante el entorno del proceso; evita incluir usuario/contraseña en argumentos de línea de comandos que puedan aparecer en listados de procesos.
 - Usa credenciales OPC-UA dedicadas de solo lectura para VIGÍA y un mapa de nodos explícito. En modo real, el mapa del servidor es obligatorio y autoritativo; el mapa enviado por el navegador debe coincidir exactamente.
 - El mapa de nodos debe contener las seis variables `pt`, `pc`, `pl`, `temp`, `q` y `choke`, con NodeIds OPC-UA válidos. Se valida al arrancar y no se permite que el navegador cambie las suscripciones reales.
