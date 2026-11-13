@@ -3,6 +3,8 @@ name: Temporary dependency security refresh
 on:
   push:
     branches: [chore/dependency-security-fix]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
