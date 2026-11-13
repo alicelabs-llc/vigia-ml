@@ -111,12 +111,14 @@ function buildView(
   }
   const proj = projections(samples, sel.base, mlFc);
   const dq = dataQuality(sel.buf.slice(-260));
-  const recs = dq.grade === "A" || dq.grade === "B"
+  const operationalDataReady =
+    (dq.grade === "A" || dq.grade === "B") && dq.timestampMode !== "receive";
+  const recs = operationalDataReady
     ? recommend(diag, proj, samples)
     : [{
         id: "data-quality-gate",
         prio: "RUTINA" as const,
-        text: "Recomendaciones suspendidas: se requieren 240 muestras consecutivas (una por minuto) y calidad A/B. Revisar continuidad y fuente antes de cualquier decisión operativa.",
+        text: "Recomendaciones suspendidas: se requieren 240 muestras consecutivas (una por minuto), calidad A/B y timestamps de origen fiables en modo real. Revisar continuidad y fuente antes de cualquier decisión operativa.",
       }];
   const explain = explainSamples(samples, { score: anom.score, level: anom.level });
   const events = mergeEvents(wells, 42);
@@ -579,7 +581,7 @@ export default function App() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <SetpointAdvisorCard diag={view.diag} samples={view.samples} base={view.sel.base} anomScore={view.anom.score} dataReady={view.dq.grade === "A" || view.dq.grade === "B"} />
+            <SetpointAdvisorCard diag={view.diag} samples={view.samples} base={view.sel.base} anomScore={view.anom.score} dataReady={(view.dq.grade === "A" || view.dq.grade === "B") && view.dq.timestampMode !== "receive"} />
             <TwinCard samples={view.samples} />
           </div>
 
