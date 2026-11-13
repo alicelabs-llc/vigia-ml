@@ -82,8 +82,10 @@ export function projections(
   base: Record<VarKey, number>,
   mlFc?: FcOverride | null,
 ): ProjRow[] {
+  const history = samples.slice(-240);
+  if (history.length < 240 || !hasRegularMinuteCadence(history, 240)) return [];
   const mk = (key: VarKey, thr: number): ProjRow => {
-    const values = samples.map((s) => s[key]);
+    const values = history.map((s) => s[key]);
     let mean: number[];
     let sdAt: (k: number) => number;
     const mv = mlFc?.byVar[key];
@@ -513,7 +515,7 @@ export function recommend(
     recs.unshift({
       id: `proj-${risky.key}`,
       prio: "ALTA",
-      text: `Ajustar choke ${chokeNow}% → ${Math.min(chokeNow + 8, 82)}%: la proyección estabiliza ${meta.short.toLowerCase()} sobre ${Math.round(risky.thr)} ${meta.unit} durante 24 h (P de incumplimiento actual ${(risky.prob * 100).toFixed(0)}%).`,
+      text: `Proyección de riesgo para ${meta.short.toLowerCase()} sobre ${Math.round(risky.thr)} ${meta.unit} en 24 h (P estimada ${(risky.prob * 100).toFixed(0)}%): solicitar revisión del responsable de operación. No es una consigna de control ni debe ejecutarse automáticamente.`,
     });
   }
 
@@ -555,8 +557,8 @@ export function dataQuality(samples: Sample[], now = Date.now()): DataQuality {
   }
 
   const sourceSample = win[win.length - 1];
-  const latency = sourceSample.source === "opcua" && Number.isFinite(sourceSample.ts)
-    ? Math.max(0, (now - sourceSample.ts!) / 1000)
+  const latency = sourceSample.source === "opcua" && Number.isFinite(sourceSample.sourceTs)
+    ? Math.max(0, (now - sourceSample.sourceTs!) / 1000)
     : null;
 
   const rows: DqRow[] = VAR_KEYS.map((key) => {
@@ -585,7 +587,7 @@ export function dataQuality(samples: Sample[], now = Date.now()): DataQuality {
   const avgFlat = rows.reduce((a, r) => a + r.flat, 0) / rows.length;
   const maxFlat = Math.max(...rows.map((r) => r.flat));
   const totSpikes = rows.reduce((a, r) => a + r.spikes, 0);
-  const latencyPenalty = latency === null ? 0 : Math.max(0, latency - 1.4) * 6;
+  const latencyPenalty = latency === null ? 0 : Math.max(0, latency - 30) * 0.5;
 
   let overall = 100 - maxFlat * 1.1 - totSpikes * 0.9 - latencyPenalty - avgFlat * 0.4;
   overall = Math.round(clamp(overall, 5, 99));
