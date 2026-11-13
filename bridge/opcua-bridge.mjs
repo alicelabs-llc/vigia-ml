@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 // ---------------------------------------------------------------------------
-// VIGÍA ML · Puente OPC-UA → WebSocket (v0.8.0)
+// VIGÍA ML · Puente OPC-UA → WebSocket (v0.12.0)
 // El navegador no puede hablar el protocolo binario OPC-UA: este puente corre
 // en un nodo de red con acceso al servidor de automatización (SCADA/RTU/PLC)
 // y reenvía las lecturas a la consola por WebSocket en frames JSON.
 //
 // Uso:
-//   node opcua-bridge.mjs --endpoint "opc.tcp://usuario:clave@10.0.0.5:4840" \
-//        --map mapa.json --port 8082
+//   OPC_ENDPOINT="opc.tcp://servidor:4840" node opcua-bridge.mjs --map mapa.json
 //   VIGIA_DEMO=1 node opcua-bridge.mjs            # modo demo sin servidor real
+// Por seguridad escucha solo en 127.0.0.1. No expongas el puerto a una red
+// industrial o pública sin un gateway autenticado y cifrado.
 //
 // Frames WebSocket (JSON una línea por mensaje):
 //   puente→cliente: {"op":"hello","msg":"..."}
@@ -19,10 +20,12 @@
 //
 // El mapa de nodos (mapa.json) vincula cada variable de VIGÍA con su NodeId:
 //   { "pt": "ns=2;s=Canal1.Dispositivo1.Tag1", "pc": "...", ... }
-// Si el cliente no envía mapa, se usa el del fichero --map o el de la env TAGS.
+// En OPC-UA real el mapa del servidor (--map / TAGS) es obligatorio y autoritativo.
+
 // ---------------------------------------------------------------------------
 
 import { WebSocketServer } from "ws";
+import { normalizeDataValue, validateTagMap } from "./config.mjs";
 
 // ----------------------------- configuración --------------------------------
 const args = process.argv.slice(2);
@@ -32,19 +35,28 @@ const argOf = (name, def = null) => {
 };
 
 const PORT = Number(argOf("--port", process.env.WS_PORT ?? 8082));
+const HOST = argOf("--host", process.env.WS_HOST ?? "127.0.0.1");
+if (!["127.0.0.1", "::1", "localhost"].includes(HOST)) {
+  console.error("[bridge] host remoto rechazado: usa un reverse proxy/VPN que conecte al loopback local");
+  process.exit(1);
+}
 const ENDPOINT = argOf("--endpoint", process.env.OPC_ENDPOINT ?? null);
 const DEMO = process.env.VIGIA_DEMO === "1" || !ENDPOINT;
 const INTERVAL = Math.max(5000, Number(argOf("--interval", 15000)));
 
 let fileMap = {};
 const mapPath = argOf("--map", process.env.TAGMAP_FILE ?? null);
-if (mapPath) {
-  try {
+try {
+  if (mapPath) {
     fileMap = JSON.parse(await import("node:fs").then((fs) => fs.readFileSync(mapPath, "utf8")));
-  } catch (e) {
-    console.error(`[bridge] no se pudo leer el mapa ${mapPath}: ${e.message}`);
-    process.exit(1);
+  } else if (process.env.TAGS) {
+    fileMap = JSON.parse(process.env.TAGS);
   }
+  if (Object.keys(fileMap).length) fileMap = validateTagMap(fileMap, { requireAll: !DEMO });
+  if (!DEMO) fileMap = validateTagMap(fileMap, { requireAll: true });
+} catch (e) {
+  console.error(`[bridge] mapa OPC-UA inválido: ${e.message}`);
+  process.exit(1);
 }
 
 // valores sintéticos del modo demo (rango físico de un pozo de gas)
@@ -97,15 +109,20 @@ async function startOpcua(clientMap) {
           if (err) console.error(`[bridge] monitor ${it.key}: ${err.message}`);
         },
       ).on("changed", (dv) => {
-        Broadcast((c) =>
-          c.send(
-            JSON.stringify({
-              op: "data",
-              ts: Date.now(),
-              values: { [clientMap[it.key] ?? it.nodeId]: dv.value.value },
-            }),
-          ),
-        );
+        const sample = normalizeDataValue(dv);
+        if (!sample) {
+          Broadcast((c) => c.send(JSON.stringify({
+            op: "status",
+            state: "degraded",
+            msg: `calidad o valor inválido para ${it.key}; lectura descartada`,
+          })));
+          return;
+        }
+        Broadcast((c) => c.send(JSON.stringify({
+          op: "data",
+          ts: sample.ts,
+          values: { [it.nodeId]: sample.value },
+        })));
       }),
     ),
   );
@@ -144,7 +161,21 @@ wss.on("connection", (socket) => {
       return;
     }
     if (f.op === "subscribe" && f.tags && typeof f.tags === "object") {
-      clientMap = { ...fileMap, ...f.tags };
+      try {
+        const requestedMap = validateTagMap(f.tags, { requireAll: true });
+        if (DEMO) {
+          clientMap = validateTagMap({ ...fileMap, ...requestedMap }, { requireAll: true });
+        } else {
+          // Las suscripciones reales ya se crearon al arrancar con --map.
+          // No aceptar un mapa distinto que la sesión OPC-UA no está monitoreando.
+          const mismatch = Object.keys(fileMap).some((key) => requestedMap[key] !== fileMap[key]);
+          if (mismatch) throw new Error("el mapa del cliente no coincide con el mapa OPC-UA del servidor");
+          clientMap = fileMap;
+        }
+      } catch (e) {
+        socket.send(JSON.stringify({ op: "error", msg: `suscripción rechazada: ${e.message}` }));
+        return;
+      }
       if (timer) clearInterval(timer);
       timer = setInterval(() => {
         if (!DEMO) return; // en modo real empujan los 'changed' de la suscripción
@@ -175,8 +206,8 @@ wss.on("connection", (socket) => {
   });
 });
 
-httpServer.listen(PORT, () => {
-  console.log(`[bridge] WebSocket en ws://0.0.0.0:${PORT} (intervalo ${INTERVAL / 1000}s)`);
+httpServer.listen(PORT, HOST, () => {
+  console.log(`[bridge] WebSocket en ws://${HOST}:${PORT} (intervalo ${INTERVAL / 1000}s)`);
   if (!DEMO) {
     startOpcua(fileMap).catch((e) => {
       console.error(`[bridge] no se pudo conectar al servidor OPC-UA: ${e.message}`);
