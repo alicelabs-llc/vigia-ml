@@ -541,6 +541,9 @@ export interface DataQuality {
   grade: "A" | "B" | "C" | "D";
   rows: DqRow[];
   verdict: string;
+  sampleCount: number;
+  regularHistory: boolean;
+  timestampMode: "simulated" | "source" | "receive";
 }
 
 export function dataQuality(samples: Sample[], now = Date.now()): DataQuality {
@@ -551,11 +554,17 @@ export function dataQuality(samples: Sample[], now = Date.now()): DataQuality {
       grade: "D",
       rows: VAR_KEYS.map((key) => ({ key, flat: 0, spikes: 0, latency: null })),
       verdict: "Sin muestras: no se puede evaluar la calidad de telemetría.",
+      sampleCount: 0,
+      regularHistory: false,
+      timestampMode: "receive",
     };
   }
 
   const sourceSample = win[win.length - 1];
-  const latency = sourceSample.source === "opcua" && Number.isFinite(sourceSample.sourceTs)
+  const timestampMode = sourceSample.source !== "opcua"
+    ? "simulated"
+    : Number.isFinite(sourceSample.sourceTs) ? "source" : "receive";
+  const latency = timestampMode === "source"
     ? Math.max(0, (now - sourceSample.sourceTs!) / 1000)
     : null;
 
@@ -596,9 +605,11 @@ export function dataQuality(samples: Sample[], now = Date.now()): DataQuality {
   const worst = [...rows].sort((a, b) => b.flat - a.flat)[0];
   const verdict = !regularHistory
     ? "Historial insuficiente o discontinuo: se requieren 240 muestras consecutivas (una por minuto) para el análisis temporal completo."
-    : grade === "A" || grade === "B"
+    : timestampMode === "receive"
+      ? "Cadencia regular, pero faltan timestamps fiables del servidor; las recomendaciones operativas permanecen bloqueadas."
+      : grade === "A" || grade === "B"
       ? "Telemetría apta para forecasting (N1) y detección de anomalías (N2)."
       : `Calidad degradada por ${VAR_META[worst.key].tag}: corregir antes de confiar en los modelos.`;
 
-  return { overall, grade, rows, verdict };
+  return { overall, grade, rows, verdict, sampleCount: win.length, regularHistory, timestampMode };
 }
