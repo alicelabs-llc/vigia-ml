@@ -17,6 +17,7 @@ export class SourceSampleAccumulator {
   private values: Partial<Record<VarKey, number>> = {};
   private lastMinute: number | null = null;
   private lastTs = 0;
+  private sourceTimestamps: Partial<Record<VarKey, number>> = {};
   private elapsedMin = 0;
   private ready = false;
   private lastSample: Sample | null = null;
@@ -28,7 +29,11 @@ export class SourceSampleAccumulator {
 
     for (const key of VAR_KEYS) {
       const value = input.values?.[key];
-      if (typeof value === "number" && Number.isFinite(value)) this.values[key] = value;
+      if (typeof value === "number" && Number.isFinite(value)) {
+        this.values[key] = value;
+        if (input.timestampOrigin === "source") this.sourceTimestamps[key] = input.ts;
+        else delete this.sourceTimestamps[key];
+      }
     }
 
     const previousMinute = this.lastMinute;
@@ -57,6 +62,9 @@ export class SourceSampleAccumulator {
       m: this.elapsedMin,
       ts: this.lastTs,
       source: "opcua",
+      sourceTs: VAR_KEYS.every((key) => Number.isFinite(this.sourceTimestamps[key]))
+        ? Math.min(...VAR_KEYS.map((key) => this.sourceTimestamps[key]!))
+        : undefined,
       pt: this.values.pt!,
       pc: this.values.pc!,
       pl: this.values.pl!,
