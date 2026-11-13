@@ -396,6 +396,8 @@ const ansCalidad: Builder = (ctx) => {
       `Variable con más señal plana: ${VAR_META[worst.key].tag} (${nf(worst.flat, 1)} % de la ventana)`,
       `Spikes totales en ventana: ${ctx.dq.rows.reduce((a, r) => a + r.spikes, 0)}`,
       `Latencia media de tags: ${latencySummary}`,
+      `Reloj de telemetría: ${ctx.dq.timestampMode === "source" ? "origen PLC/SCADA" : ctx.dq.timestampMode === "simulated" ? "simulación" : "recepción local; no validado"}`,
+      `Historial continuo: ${ctx.dq.sampleCount}/240 muestras`,
     ],
   };
 };
