@@ -17,6 +17,8 @@ jobs:
           cache: npm
       - name: Instalar dependencias
         run: npm ci
+      - name: Auditoría de dependencias
+        run: npm audit --audit-level=high
       - name: Verificación de tipos
         run: npm run typecheck
       - name: Pruebas unitarias
