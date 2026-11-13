@@ -36,8 +36,13 @@ export function normalizeDataValue(dataValue, now = Date.now()) {
   if (dataValue?.statusCode && typeof dataValue.statusCode.isGood === "function" && !dataValue.statusCode.isGood()) return null;
   const value = dataValue?.value?.value;
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
-  const candidateTs = dataValue.sourceTimestamp instanceof Date ? dataValue.sourceTimestamp.getTime() : now;
-  return { value, ts: Number.isFinite(candidateTs) ? candidateTs : now };
+  const sourceTs = dataValue.sourceTimestamp instanceof Date ? dataValue.sourceTimestamp.getTime() : NaN;
+  const hasSourceTs = Number.isFinite(sourceTs);
+  return {
+    value,
+    ts: hasSourceTs ? sourceTs : now,
+    timestampOrigin: hasSourceTs ? "source" : "receive",
+  };
 }
 
 /** Alias de telemetría estable que espera el cliente de VIGÍA. */
