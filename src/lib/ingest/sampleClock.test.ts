@@ -29,6 +29,16 @@ describe("SourceSampleAccumulator", () => {
     expect(acc.current()?.sourceTs).toBeUndefined();
   });
 
+  it("retains source timestamps only when every tag has a trusted source timestamp", () => {
+    const acc = new SourceSampleAccumulator();
+    for (const key of Object.keys(base) as (keyof typeof base)[]) {
+      acc.ingest(frame(60_000, { [key]: base[key] }, "source"));
+    }
+    expect(acc.current()?.sourceTs).toBe(60_000);
+    acc.ingest(frame(75_000, { pt: 555 }, "receive"));
+    expect(acc.current()?.sourceTs).toBeUndefined();
+  });
+
   it("merges multiple tag notifications within the same minute", () => {
     const acc = new SourceSampleAccumulator();
     for (const key of Object.keys(base) as (keyof typeof base)[]) acc.ingest(frame(60_000, { [key]: base[key] }));
