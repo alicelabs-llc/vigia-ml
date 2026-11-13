@@ -25,7 +25,7 @@
 // ---------------------------------------------------------------------------
 
 import { WebSocketServer } from "ws";
-import { validateTagMap } from "./config.mjs";
+import { normalizeDataValue, validateTagMap } from "./config.mjs";
 
 // ----------------------------- configuración --------------------------------
 const args = process.argv.slice(2);
@@ -36,6 +36,10 @@ const argOf = (name, def = null) => {
 
 const PORT = Number(argOf("--port", process.env.WS_PORT ?? 8082));
 const HOST = argOf("--host", process.env.WS_HOST ?? "127.0.0.1");
+if (!["127.0.0.1", "::1", "localhost"].includes(HOST)) {
+  console.error("[bridge] host remoto rechazado: usa un reverse proxy/VPN que conecte al loopback local");
+  process.exit(1);
+}
 const ENDPOINT = argOf("--endpoint", process.env.OPC_ENDPOINT ?? null);
 const DEMO = process.env.VIGIA_DEMO === "1" || !ENDPOINT;
 const INTERVAL = Math.max(5000, Number(argOf("--interval", 15000)));
@@ -105,28 +109,19 @@ async function startOpcua(clientMap) {
           if (err) console.error(`[bridge] monitor ${it.key}: ${err.message}`);
         },
       ).on("changed", (dv) => {
-        if (dv.statusCode && typeof dv.statusCode.isGood === "function" && !dv.statusCode.isGood()) {
+        const sample = normalizeDataValue(dv);
+        if (!sample) {
           Broadcast((c) => c.send(JSON.stringify({
             op: "status",
             state: "degraded",
-            msg: `calidad OPC-UA no válida para ${it.key}; lectura descartada`,
+            msg: `calidad o valor inválido para ${it.key}; lectura descartada`,
           })));
           return;
         }
-        const value = dv.value?.value;
-        if (typeof value !== "number" || !Number.isFinite(value)) {
-          Broadcast((c) => c.send(JSON.stringify({
-            op: "status",
-            state: "degraded",
-            msg: `valor no numérico/no finito para ${it.key}; lectura descartada`,
-          })));
-          return;
-        }
-        const sourceTs = dv.sourceTimestamp instanceof Date ? dv.sourceTimestamp.getTime() : Date.now();
         Broadcast((c) => c.send(JSON.stringify({
           op: "data",
-          ts: sourceTs,
-          values: { [it.nodeId]: value },
+          ts: sample.ts,
+          values: { [it.nodeId]: sample.value },
         })));
       }),
     ),
@@ -213,9 +208,6 @@ wss.on("connection", (socket) => {
 
 httpServer.listen(PORT, HOST, () => {
   console.log(`[bridge] WebSocket en ws://${HOST}:${PORT} (intervalo ${INTERVAL / 1000}s)`);
-  if (HOST !== "127.0.0.1" && HOST !== "::1" && HOST !== "localhost") {
-    console.warn("[bridge] ADVERTENCIA: escucha fuera de loopback; protege el acceso con firewall/VPN y no lo expongas a Internet.");
-  }
   if (!DEMO) {
     startOpcua(fileMap).catch((e) => {
       console.error(`[bridge] no se pudo conectar al servidor OPC-UA: ${e.message}`);
