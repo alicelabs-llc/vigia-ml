@@ -459,7 +459,6 @@ export function recommend(
   samples: Sample[],
 ): Recommendation[] {
   const recs: Recommendation[] = [];
-  const last = samples[samples.length - 1];
   const top = diag.filter((d) => d.id !== "normal").slice(0, 2);
 
   for (const h of top) {
@@ -510,7 +509,6 @@ export function recommend(
 
   const risky = proj.find((p) => p.prob > 0.35);
   if (risky) {
-    const chokeNow = Math.round(last.choke);
     const meta = VAR_META[risky.key];
     recs.unshift({
       id: `proj-${risky.key}`,
