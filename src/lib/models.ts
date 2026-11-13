@@ -541,6 +541,9 @@ export interface DataQuality {
   grade: "A" | "B" | "C" | "D";
   rows: DqRow[];
   verdict: string;
+  sampleCount: number;
+  regularHistory: boolean;
+  timestampMode: "none" | "simulated" | "source" | "receive";
 }
 
 export function dataQuality(samples: Sample[], now = Date.now()): DataQuality {
@@ -551,11 +554,17 @@ export function dataQuality(samples: Sample[], now = Date.now()): DataQuality {
       grade: "D",
       rows: VAR_KEYS.map((key) => ({ key, flat: 0, spikes: 0, latency: null })),
       verdict: "Sin muestras: no se puede evaluar la calidad de telemetría.",
+      sampleCount: 0,
+      regularHistory: false,
+      timestampMode: "none",
     };
   }
 
   const sourceSample = win[win.length - 1];
-  const latency = sourceSample.source === "opcua" && Number.isFinite(sourceSample.sourceTs)
+  const timestampMode: DataQuality["timestampMode"] = sourceSample.source !== "opcua"
+    ? "simulated"
+    : Number.isFinite(sourceSample.sourceTs) ? "source" : "receive";
+  const latency = timestampMode === "source"
     ? Math.max(0, (now - sourceSample.sourceTs!) / 1000)
     : null;
 
@@ -600,5 +609,5 @@ export function dataQuality(samples: Sample[], now = Date.now()): DataQuality {
       ? "Telemetría apta para forecasting (N1) y detección de anomalías (N2)."
       : `Calidad degradada por ${VAR_META[worst.key].tag}: corregir antes de confiar en los modelos.`;
 
-  return { overall, grade, rows, verdict };
+  return { overall, grade, rows, verdict, sampleCount: win.length, regularHistory, timestampMode };
 }
