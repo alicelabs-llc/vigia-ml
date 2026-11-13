@@ -7,7 +7,7 @@ const frame = (ts: number, values: Partial<typeof base>, timestampOrigin: "sourc
 
 describe("SourceSampleAccumulator", () => {
   it("waits for the six initial tags before emitting a real sample", () => {
-    const acc = new SourceSampleAccumulator();
+    const acc = new SourceSampleAccumulator(60_000);
     expect(acc.ingest(frame(60_000, { pt: 560 }))).toBeNull();
     expect(acc.ingest(frame(61_000, { pc: 780, pl: 430 }))).toBeNull();
     expect(acc.ingest(frame(62_000, { temp: 44, q: 2250 }))).toBeNull();
@@ -20,7 +20,7 @@ describe("SourceSampleAccumulator", () => {
   });
 
   it("retains source timestamps only when every tag has a trusted source timestamp", () => {
-    const acc = new SourceSampleAccumulator();
+    const acc = new SourceSampleAccumulator(60_000);
     for (const key of Object.keys(base) as (keyof typeof base)[]) {
       acc.ingest(frame(60_000, { [key]: base[key] }, "source"));
     }
@@ -30,7 +30,7 @@ describe("SourceSampleAccumulator", () => {
   });
 
   it("retains source timestamps only when every tag has a trusted source timestamp", () => {
-    const acc = new SourceSampleAccumulator();
+    const acc = new SourceSampleAccumulator(60_000);
     for (const key of Object.keys(base) as (keyof typeof base)[]) {
       acc.ingest(frame(60_000, { [key]: base[key] }, "source"));
     }
@@ -40,7 +40,7 @@ describe("SourceSampleAccumulator", () => {
   });
 
   it("merges multiple tag notifications within the same minute", () => {
-    const acc = new SourceSampleAccumulator();
+    const acc = new SourceSampleAccumulator(60_000);
     for (const key of Object.keys(base) as (keyof typeof base)[]) acc.ingest(frame(60_000, { [key]: base[key] }));
     const update = acc.ingest(frame(75_000, { pt: 555 }));
     expect(update?.kind).toBe("update");
@@ -50,7 +50,7 @@ describe("SourceSampleAccumulator", () => {
   });
 
   it("advances elapsed minutes by source time, not by frame count", () => {
-    const acc = new SourceSampleAccumulator();
+    const acc = new SourceSampleAccumulator(60_000);
     for (const key of Object.keys(base) as (keyof typeof base)[]) acc.ingest(frame(60_000, { [key]: base[key] }));
     const next = acc.ingest(frame(120_000, { q: 2200 }));
     expect(next?.kind).toBe("new-minute");
@@ -60,7 +60,7 @@ describe("SourceSampleAccumulator", () => {
   });
 
   it("ignores out-of-order minutes and invalid timestamps", () => {
-    const acc = new SourceSampleAccumulator();
+    const acc = new SourceSampleAccumulator(60_000);
     for (const key of Object.keys(base) as (keyof typeof base)[]) acc.ingest(frame(120_000, { [key]: base[key] }));
     expect(acc.ingest(frame(60_000, { pt: 500 }))).toBeNull();
     expect(acc.ingest(frame(Number.NaN, { pt: 500 }))).toBeNull();
@@ -68,7 +68,7 @@ describe("SourceSampleAccumulator", () => {
   });
 
   it("does not emit until every variable has a finite initial value", () => {
-    const acc = new SourceSampleAccumulator();
+    const acc = new SourceSampleAccumulator(60_000);
     expect(acc.ingest(frame(60_000, { pt: 560, pc: 780, pl: 430, temp: 44, q: 2250 }))).toBeNull();
     expect(acc.ingest(frame(61_000, { choke: Number.NaN }))).toBeNull();
     expect(acc.ingest(frame(62_000, { choke: 54 }))?.kind).toBe("initial");
