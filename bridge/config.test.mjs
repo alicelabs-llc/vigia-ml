@@ -48,8 +48,8 @@ describe("validateTagMap", () => {
 
   it("preserves source timestamps and safely falls back", () => {
     const ts = new Date("2026-11-12T12:00:00.000Z").getTime();
-    expect(normalizeDataValue({ value: { value: 12 }, sourceTimestamp: new Date(ts) })).toEqual({ value: 12, ts });
-    expect(normalizeDataValue({ value: { value: 12 }, sourceTimestamp: new Date("invalid") }, 123)).toEqual({ value: 12, ts: 123 });
+    expect(normalizeDataValue({ value: { value: 12 }, sourceTimestamp: new Date(ts) })).toEqual({ value: 12, ts, timestampOrigin: "source" });
+    expect(normalizeDataValue({ value: { value: 12 }, sourceTimestamp: new Date("invalid") }, 123)).toEqual({ value: 12, ts: 123, timestampOrigin: "receive" });
   });
 
   it("requires all six process variables for a full real-world subscription", () => {
