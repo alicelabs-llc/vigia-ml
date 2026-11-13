@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { SCENARIO_INFO, VAR_KEYS, VAR_META, createFleet, fmtClock, mergeEvents, sanitizeSample } from "./lib/sim";
 import type { Sample, Scenario, VarKey, WellEvent, WellSim } from "./lib/sim";
 import { OpcuaBridgeSource } from "./lib/ingest/opcuaBridge";
+import { SourceSampleAccumulator } from "./lib/ingest/sampleClock";
 import type { LinkStatus, LinkStats, TagMap } from "./lib/ingest/opcuaBridge";
 import { anomaly, anomalyLevel, dataQuality, diagnose, projections, recommend } from "./lib/models";
 import type {
@@ -297,6 +298,8 @@ export default function App() {
   // las muestras del puente entran saneadas al buffer del pozo seleccionado;
   // el simulador queda en pausa mientras la fuente externa está activa
   const sourceRef = useRef<OpcuaBridgeSource | null>(null);
+  const sourceAccumulatorRef = useRef<SourceSampleAccumulator | null>(null);
+  const sourceWellIdRef = useRef<string | null>(null);
   const selIdRef = useRef(selId);
   selIdRef.current = selId;
   const [srcUrl, setSrcUrl] = useState("ws://localhost:8082");
@@ -307,24 +310,43 @@ export default function App() {
   const connectSource = () => {
     disconnectSource();
     const src = new OpcuaBridgeSource();
+    sourceAccumulatorRef.current = new SourceSampleAccumulator();
+    sourceWellIdRef.current = selIdRef.current;
     src.onData((s) => {
       const wells = fleetRef.current!;
       const w = wells.find((x) => x.id === selIdRef.current) ?? wells[0];
-      const last = w.last;
-      const v = s.values;
-      // variables ausentes en el frame se mantienen del último valor (continuidad)
-      w.buf.push(
-        sanitizeSample({
-          m: last.m + 1,
-          pt: v.pt ?? last.pt,
-          pc: v.pc ?? last.pc,
-          pl: v.pl ?? last.pl,
-          temp: v.temp ?? last.temp,
-          q: v.q ?? last.q,
-          choke: v.choke ?? last.choke,
-        }),
-      );
-      if (w.buf.length > 520) w.buf.shift();
+      const accumulator = sourceAccumulatorRef.current;
+      const update = accumulator?.ingest(s) ?? null;
+      const changedWell = sourceWellIdRef.current !== w.id;
+      if (changedWell) sourceWellIdRef.current = w.id;
+
+      if (changedWell || update?.kind === "initial") {
+        const snapshot = update?.sample ?? accumulator?.current() ?? null;
+        if (snapshot) {
+          // Nunca mezclar historial sintético con telemetría real.
+          w.buf.splice(0, w.buf.length, snapshot);
+          w.base = {
+            pt: snapshot.pt, pc: snapshot.pc, pl: snapshot.pl,
+            temp: snapshot.temp, q: snapshot.q, choke: snapshot.choke,
+          };
+          w.m = snapshot.m;
+          w.setScenario("normal");
+          w.log("warn", "Fuente OPC-UA: buffer reiniciado; línea base provisional tomada de la primera muestra completa. Validar baseline con ingeniería.");
+          refreshLevels(wells, true);
+          setTickN((n) => n + 1);
+        }
+      } else if (update?.kind === "new-minute") {
+        w.buf.push(update.sample);
+        if (w.buf.length > 520) w.buf.shift();
+        refreshLevels(wells, true);
+        setTickN((n) => n + 1);
+      } else if (update?.kind === "update" && w.buf.length) {
+        // Seis tags pueden llegar en frames distintos dentro del mismo minuto:
+        // se combinan en una muestra, no se cuentan como seis minutos.
+        w.buf[w.buf.length - 1] = update.sample;
+        refreshLevels(wells, true);
+        setTickN((n) => n + 1);
+      }
       setSrcStats(src.stats);
     });
     src.onStatus((st, info) => {
@@ -350,6 +372,8 @@ export default function App() {
   };
 
   const disconnectSource = () => {
+    sourceAccumulatorRef.current = null;
+    sourceWellIdRef.current = null;
     if (sourceRef.current) {
       sourceRef.current.disconnect();
       sourceRef.current = null;
