@@ -4,7 +4,7 @@
 // N4 probabilidad de cruce de umbral · N5 recomendaciones · calidad de datos
 // ---------------------------------------------------------------------------
 
-import { VAR_META, VAR_KEYS } from "./sim";
+import { hasRegularMinuteCadence, VAR_META, VAR_KEYS } from "./sim";
 import type { Sample, VarKey } from "./sim";
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -164,7 +164,7 @@ export function anomaly(samples: Sample[]): AnomalyResult {
 
     const z = sd > 1e-6 ? Math.abs(last - mean) / sd : 0;
     // componente de tendencia: pendiente por hora vs dispersión
-    const slope = linSlopePerHour(vals.map((v, i) => ({ x: i, y: v }))) ;
+    const slope = linSlopePerHour(win.map((s) => ({ x: s.m, y: s[key] })));
     const zt = sd > 1e-6 ? Math.abs(slope) / sd : 0;
 
     const share = W[key] * (Math.max(0, z - 1.2) + Math.max(0, zt - 0.6) * 2.6);
@@ -204,7 +204,7 @@ export function linSlopePerHour(pts: { x: number; y: number }[]): number {
 
 export function trendPerHour(samples: Sample[], key: VarKey, win = 45): number {
   const vals = samples.slice(-win);
-  return linSlopePerHour(vals.map((s, i) => ({ x: i, y: s[key] })));
+  return linSlopePerHour(vals.map((s) => ({ x: s.m, y: s[key] })));
 }
 
 const f1 = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}`;
@@ -533,7 +533,7 @@ export interface DqRow {
   key: VarKey;
   flat: number; // %
   spikes: number; // por ventana
-  latency: number; // s
+  latency: number | null; // s; null cuando la fuente no proporciona timestamp real
 }
 
 export interface DataQuality {
@@ -543,9 +543,23 @@ export interface DataQuality {
   verdict: string;
 }
 
-export function dataQuality(samples: Sample[]): DataQuality {
+export function dataQuality(samples: Sample[], now = Date.now()): DataQuality {
   const win = samples.slice(-240);
-  const rows: DqRow[] = VAR_KEYS.map((key, idx) => {
+  if (win.length === 0) {
+    return {
+      overall: 0,
+      grade: "D",
+      rows: VAR_KEYS.map((key) => ({ key, flat: 0, spikes: 0, latency: null })),
+      verdict: "Sin muestras: no se puede evaluar la calidad de telemetría.",
+    };
+  }
+
+  const sourceSample = win[win.length - 1];
+  const latency = sourceSample.source === "opcua" && Number.isFinite(sourceSample.ts)
+    ? Math.max(0, (now - sourceSample.ts!) / 1000)
+    : null;
+
+  const rows: DqRow[] = VAR_KEYS.map((key) => {
     const vals = win.map((s) => s[key]);
     let flatCount = 0;
     let spikes = 0;
@@ -560,7 +574,6 @@ export function dataQuality(samples: Sample[]): DataQuality {
       }
     }
     for (const v of vals) if (Math.abs(v - mean) / sd > 5.5) spikes++;
-    const latency = 0.7 + 1.5 * Math.abs(Math.sin((idx + 1) * 12.9898 + n * 0.017));
     return {
       key,
       flat: (flatCount / Math.max(1, n - 15)) * 100,
@@ -572,15 +585,18 @@ export function dataQuality(samples: Sample[]): DataQuality {
   const avgFlat = rows.reduce((a, r) => a + r.flat, 0) / rows.length;
   const maxFlat = Math.max(...rows.map((r) => r.flat));
   const totSpikes = rows.reduce((a, r) => a + r.spikes, 0);
-  const avgLat = rows.reduce((a, r) => a + r.latency, 0) / rows.length;
+  const latencyPenalty = latency === null ? 0 : Math.max(0, latency - 1.4) * 6;
 
-  let overall = 100 - maxFlat * 1.1 - totSpikes * 0.9 - Math.max(0, avgLat - 1.4) * 6 - avgFlat * 0.4;
+  let overall = 100 - maxFlat * 1.1 - totSpikes * 0.9 - latencyPenalty - avgFlat * 0.4;
   overall = Math.round(clamp(overall, 5, 99));
+  const regularHistory = win.length >= 240 && hasRegularMinuteCadence(win, 240);
+  if (!regularHistory) overall = Math.min(overall, 59);
   const grade: DataQuality["grade"] = overall >= 90 ? "A" : overall >= 75 ? "B" : overall >= 60 ? "C" : "D";
 
   const worst = [...rows].sort((a, b) => b.flat - a.flat)[0];
-  const verdict =
-    grade === "A" || grade === "B"
+  const verdict = !regularHistory
+    ? "Historial insuficiente o discontinuo: se requieren 240 muestras consecutivas (una por minuto) para el análisis temporal completo."
+    : grade === "A" || grade === "B"
       ? "Telemetría apta para forecasting (N1) y detección de anomalías (N2)."
       : `Calidad degradada por ${VAR_META[worst.key].tag}: corregir antes de confiar en los modelos.`;
 
