@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SCENARIO_INFO, VAR_KEYS, VAR_META, createFleet, fmtClock, mergeEvents, sanitizeSample } from "./lib/sim";
+import { SCENARIO_INFO, VAR_KEYS, VAR_META, createFleet, fmtClock, mergeEvents } from "./lib/sim";
 import type { Sample, Scenario, VarKey, WellEvent, WellSim } from "./lib/sim";
 import { OpcuaBridgeSource } from "./lib/ingest/opcuaBridge";
 import { SourceSampleAccumulator } from "./lib/ingest/sampleClock";
@@ -110,8 +110,14 @@ function buildView(
     diagMl = true;
   }
   const proj = projections(samples, sel.base, mlFc);
-  const recs = recommend(diag, proj, samples);
   const dq = dataQuality(sel.buf.slice(-260));
+  const recs = dq.grade === "A" || dq.grade === "B"
+    ? recommend(diag, proj, samples)
+    : [{
+        id: "data-quality-gate",
+        prio: "RUTINA" as const,
+        text: "Recomendaciones suspendidas: se requieren 240 muestras consecutivas (una por minuto) y calidad A/B. Revisar continuidad y fuente antes de cualquier decisión operativa.",
+      }];
   const explain = explainSamples(samples, { score: anom.score, level: anom.level });
   const events = mergeEvents(wells, 42);
   const alarmCount = wells.filter((w) => w.level === "ALERTA" || w.level === "CRÍTICO").length;
@@ -573,7 +579,7 @@ export default function App() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <SetpointAdvisorCard diag={view.diag} samples={view.samples} base={view.sel.base} anomScore={view.anom.score} />
+            <SetpointAdvisorCard diag={view.diag} samples={view.samples} base={view.sel.base} anomScore={view.anom.score} dataReady={view.dq.grade === "A" || view.dq.grade === "B"} />
             <TwinCard samples={view.samples} />
           </div>
 
