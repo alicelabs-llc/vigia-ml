@@ -385,13 +385,17 @@ const ansEventos: Builder = (ctx) => {
 
 const ansCalidad: Builder = (ctx) => {
   const worst = [...ctx.dq.rows].sort((a, b) => b.flat - a.flat)[0];
+  const latencyRows = ctx.dq.rows.filter((row) => row.latency !== null);
+  const latencySummary = latencyRows.length
+    ? `${nf(latencyRows.reduce((a, row) => a + (row.latency ?? 0), 0) / latencyRows.length, 1)} s`
+    : "no disponible (sin timestamp fiable de origen)";
   return {
     intent: "calidad",
     answer: `Calidad de telemetría ${ctx.dq.grade} (${ctx.dq.overall}/100). ${ctx.dq.verdict}`,
     bullets: [
       `Variable con más señal plana: ${VAR_META[worst.key].tag} (${nf(worst.flat, 1)} % de la ventana)`,
       `Spikes totales en ventana: ${ctx.dq.rows.reduce((a, r) => a + r.spikes, 0)}`,
-      `Latencia media de tags: ${nf(ctx.dq.rows.reduce((a, r) => a + r.latency, 0) / ctx.dq.rows.length, 1)} s`,
+      `Latencia media de tags: ${latencySummary}`,
     ],
   };
 };
