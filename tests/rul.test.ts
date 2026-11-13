@@ -78,6 +78,16 @@ describe("rul — edad de episodio sobre buffers", () => {
     expect(age).toBe(30);
   });
 
+  it("no atribuye duración a huecos sin muestras", () => {
+    const buf = [
+      mk(470, 780, 430, 44, 2250, 54, 10),
+      mk(470, 780, 430, 44, 2250, 54, 11),
+      mk(470, 780, 430, 44, 2250, 54, 15),
+      mk(470, 780, 430, 44, 2250, 54, 16),
+    ];
+    expect(episodeAgeMin(buf, "pt", (v) => v < 500)).toBe(2);
+  });
+
   it("flatAgeMin detecta un sensor congelado", () => {
     const buf: Sample[] = [];
     for (let i = 0; i < 20; i++)

@@ -80,14 +80,13 @@ export function normVec(s: Sample, n: Norm): number[] {
 // ya saturados, donde las pendientes vuelven a cero). Todos acotados a
 // [-4, 4] para estabilizar la red densa.
 export function extractFeatures(win: Sample[], norm: Norm): number[] {
-  const col = (k: VarKey) => win.map((s) => s[k]);
-  const slope = (arr: number[]) => linSlopePerHour(arr.map((v, i) => ({ x: i, y: v })));
+  const slope = (key: VarKey) => linSlopePerHour(win.map((s) => ({ x: s.m, y: s[key] })));
 
-  const ptT = slope(col("pt")) / 15;
-  const pcT = slope(col("pc")) / 15;
-  const plT = slope(col("pl")) / 15;
-  const qT = slope(col("q")) / Math.max(20, norm.base.q * 0.08);
-  const tT = slope(col("temp")) / 3;
+  const ptT = slope("pt") / 15;
+  const pcT = slope("pc") / 15;
+  const plT = slope("pl") / 15;
+  const qT = slope("q") / Math.max(20, norm.base.q * 0.08);
+  const tT = slope("temp") / 3;
   const dpCT = (pcT * 15 - ptT * 15) / 12; // divergencia casing − tubing
   const dpTL = (ptT * 15 - plT * 15) / 12; // diferencial tubing − línea
 

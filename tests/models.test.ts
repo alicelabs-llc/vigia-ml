@@ -11,6 +11,7 @@ import {
   diagnose,
   recommend,
   dataQuality,
+  trendPerHour,
 } from "../src/lib/models";
 import { WellSim } from "../src/lib/sim";
 import type { WellCfg, Sample } from "../src/lib/sim";
@@ -83,6 +84,16 @@ describe("N4 · projections", () => {
     }
   });
 
+  it("no calcula proyecciones sin 240 muestras regulares", () => {
+    const w = new WellSim(cfg);
+    expect(projections(w.buf.slice(0, 100), w.base)).toEqual([]);
+    const irregular = w.buf.slice(-240).map((sample, i) => ({
+      ...sample,
+      m: sample.m + (i > 100 ? 1 : 0),
+    }));
+    expect(projections(irregular, w.base)).toEqual([]);
+  });
+
   it("umbral por defecto: pt = 82% de base, q = 78% de base", () => {
     const w = new WellSim(cfg);
     const rows = projections(w.buf, w.base);
@@ -151,6 +162,17 @@ describe("N5 · recommend", () => {
     expect(["ALTA", "MEDIA", "RUTINA"]).toContain(recs[0].prio);
   });
 
+  it("presenta el riesgo de proyección como revisión, no como orden de setpoint", () => {
+    const w = new WellSim(cfg);
+    const risky = [
+      { key: "pt", thr: 400, condition: "P·tubing < 400 psi", prob: 0.9, hoursEst: 1 },
+    ] as Parameters<typeof recommend>[1];
+    const recs = recommend([], risky, w.buf);
+    expect(recs[0].text).toMatch(/revisión del responsable de operación/i);
+    expect(recs[0].text).toMatch(/debe ejecutarse automáticamente/i);
+    expect(recs[0].text).not.toMatch(/Ajustar choke/i);
+  });
+
   it("con liquid loading sugiere descarga de líquidos (ALTA)", () => {
     const w = new WellSim({ ...cfg, seed: 1103, script: [{ at: 100, s: "liquidLoading" }], preRun: 480 });
     const s = w.buf.slice(-240);
@@ -170,12 +192,41 @@ describe("calidad de datos", () => {
     expect(dq.rows).toHaveLength(6);
   });
 
+  it("no inventa latencia para el simulador y mide la latencia real OPC-UA", () => {
+    const w = new WellSim(cfg);
+    const simQuality = dataQuality(w.buf.slice(-260));
+    expect(simQuality.rows.every((row) => row.latency === null)).toBe(true);
+
+    const now = Date.now();
+    const live = { ...w.last, ts: now, sourceTs: now - 5000, source: "opcua" as const };
+    const liveQuality = dataQuality([live], now);
+    expect(liveQuality.rows.every((row) => row.latency === 5)).toBe(true);
+    expect(liveQuality.grade).toBe("D");
+    expect(liveQuality.verdict).toMatch(/240 muestras/);
+  });
+
+  it("devuelve calidad D sin datos", () => {
+    const dq = dataQuality([]);
+    expect(dq.grade).toBe("D");
+    expect(dq.overall).toBe(0);
+    expect(dq.rows).toHaveLength(6);
+  });
+
+  it("calcula tendencias con minutos transcurridos, no con cantidad de frames", () => {
+    const samples: Sample[] = [
+      { m: 0, pt: 100, pc: 100, pl: 100, temp: 20, q: 100, choke: 50 },
+      { m: 1, pt: 101, pc: 100, pl: 100, temp: 20, q: 100, choke: 50 },
+      { m: 3, pt: 103, pc: 100, pl: 100, temp: 20, q: 100, choke: 50 },
+    ];
+    expect(trendPerHour(samples, "pt", 3)).toBeCloseTo(60, 6);
+  });
+
   it("cada fila es finita y coherente", () => {
     const w = new WellSim(cfg);
     const dq = dataQuality(w.buf.slice(-260));
     for (const r of dq.rows) {
       expect(Number.isFinite(r.flat)).toBe(true);
-      expect(Number.isFinite(r.latency)).toBe(true);
+      if (r.latency !== null) expect(Number.isFinite(r.latency)).toBe(true);
       expect(r.spikes).toBeGreaterThanOrEqual(0);
       expect(r.flat).toBeGreaterThanOrEqual(0);
     }

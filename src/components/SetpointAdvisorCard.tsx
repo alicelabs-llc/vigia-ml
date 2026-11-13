@@ -74,16 +74,29 @@ export function SetpointAdvisorCard({
   samples,
   base,
   anomScore,
+  dataReady,
 }: {
   diag: Hypothesis[];
   samples: Sample[];
   base: Record<VarKey, number>;
   anomScore: number;
+  dataReady: boolean;
 }) {
   const advice = useMemo(() => {
     const top = diag.find((d) => d.id !== "normal") ?? diag[diag.length - 1] ?? { id: "normal", conf: 0 };
     return adviseSetpoints({ samples, base, diagId: top.id, diagConf: top.conf, anomScore });
   }, [diag, samples, base, anomScore]);
+
+  if (!dataReady) {
+    return (
+      <div className="panel corners p-3.5 flex-1 min-w-[280px] rise" style={{ animationDelay: "220ms" }}>
+        <SectionHead level="SETPOINTS" title="Asesor de apertura óptima" accent={ACCENT} />
+        <p className="text-[11px] text-fg3 leading-relaxed font-mono">
+          ASESOR EN ESPERA — se requieren 240 muestras consecutivas con calidad A/B. No se muestran sugerencias de apertura con historial insuficiente o discontinuo.
+        </p>
+      </div>
+    );
+  }
 
   if (!advice.feasible) {
     return (
@@ -134,6 +147,10 @@ export function SetpointAdvisorCard({
       </div>
 
       <UtilityCurve advice={advice} />
+
+      <p className="mt-2 text-[9px] text-fg3 leading-relaxed font-mono">
+        SOLO ASESORÍA: no escribe en PLC/SCADA ni sustituye límites, permisos o validación de ingeniería. No ejecutar como setpoint automático.
+      </p>
 
       <div className="mt-2.5 flex flex-wrap gap-1.5">
         {advice.constraints.map((c) => (

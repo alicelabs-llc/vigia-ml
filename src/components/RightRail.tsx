@@ -141,7 +141,7 @@ export function RecommendationsPanel({
                   }`}
                 >
                   <IconCheck size={10} />
-                  {isDone ? "EJECUTADA" : "MARCAR"}
+                  {isDone ? "REVISADA" : "MARCAR REVISIÓN"}
                 </button>
               </div>
               <p className={`mt-1.5 text-[11px] leading-snug text-fg2 ${isDone ? "line-through" : ""}`}>{r.text}</p>
@@ -150,7 +150,7 @@ export function RecommendationsPanel({
         })}
       </ol>
       <p className="mt-2.5 font-mono text-[8.5px] text-fg3/80 tracking-[0.06em]">
-        AQUÍ EMPIEZA EL VALOR OPERACIONAL · CONFIRMAR CON INGENIERÍA DE PRODUCCIÓN
+        SOLO ORIENTATIVAS · NO EJECUTAN ACCIONES EN SCADA · VALIDACIÓN Y AUTORIZACIÓN DE OPERACIÓN OBLIGATORIAS
       </p>
     </div>
   );

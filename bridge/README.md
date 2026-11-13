@@ -14,7 +14,7 @@ El navegador **no puede hablar el protocolo binario OPC-UA** (TCP 4840, codifica
 | Dirección | Frame | Significado |
 |---|---|---|
 | puente → consola | `{"op":"hello","msg":"..."}` | saludo tras conectar |
-| puente → consola | `{"op":"data","ts":...,"values":{"PT-101":123.4}}` | lecturas etiquetadas por alias lógico; `ts` usa timestamp de origen cuando existe |
+| puente → consola | `{"op":"data","ts":...,"timestampOrigin":"source|receive","values":{"PT-101":123.4}}` | lecturas etiquetadas por alias lógico; `ts` usa timestamp de origen cuando existe |
 | puente → consola | `{"op":"status","state":"degraded","msg":"..."}` | fuente degradada |
 | puente → consola | `{"op":"error","msg":"..."}` | error de lectura |
 | consola → puente | `{"op":"subscribe","tags":{"pt":"PT-101","pc":"PT-102",...},"intervalMs":15000}` | mapa de variables |

@@ -18,7 +18,10 @@ export type Scenario =
 export type Severity = "info" | "ok" | "warn" | "alarm";
 
 export interface Sample {
-  m: number; // minuto simulado
+  m: number; // minuto transcurrido (simulado o desde la primera muestra externa)
+  ts?: number; // timestamp para agrupar muestras, epoch ms
+  sourceTs?: number; // timestamp de origen fiable; ausente si el servidor no lo proporciona
+  source?: "opcua";
   pt: number;
   pc: number;
   pl: number;
@@ -65,7 +68,17 @@ export function sanitizeSample(s: Sample): Sample {
     if (out[k] > SAN_HI[k]) out[k] = SAN_HI[k];
   }
   if (!Number.isFinite(out.m)) out.m = 0;
+  if (out.ts !== undefined && (!Number.isFinite(out.ts) || out.ts <= 0)) delete out.ts;
+  if (out.sourceTs !== undefined && (!Number.isFinite(out.sourceTs) || out.sourceTs <= 0)) delete out.sourceTs;
+  if (out.source !== undefined && out.source !== "opcua") delete out.source;
   return out;
+}
+
+/** Comprueba que una ventana tenga una muestra por cada minuto, sin huecos. */
+export function hasRegularMinuteCadence(samples: Sample[], required = samples.length): boolean {
+  if (!Number.isInteger(required) || required < 1 || samples.length < required) return false;
+  const win = samples.slice(-required);
+  return win.every((sample, i) => i === 0 || sample.m - win[i - 1].m === 1);
 }
 
 // el minuto 0 equivale a ~6.7 h atrás en tiempo real

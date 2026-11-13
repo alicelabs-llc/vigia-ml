@@ -121,6 +121,7 @@ async function startOpcua(clientMap) {
         Broadcast((c) => c.send(JSON.stringify({
           op: "data",
           ts: sample.ts,
+          timestampOrigin: sample.timestampOrigin,
           values: { [CLIENT_TAGS[it.key]]: sample.value },
         })));
       }),

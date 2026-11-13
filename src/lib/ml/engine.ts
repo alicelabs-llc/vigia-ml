@@ -29,6 +29,7 @@ import {
 import type { ClassId } from "./dataGen";
 import { anomalyLevel, linSlopePerHour } from "../models";
 import type { Contribution, Forecast, Hypothesis } from "../models";
+import { hasRegularMinuteCadence } from "../sim";
 import type { Sample, VarKey } from "../sim";
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -649,7 +650,7 @@ export class VigiaEngine {
   async assess(samples: Sample[], base: Record<VarKey, number>): Promise<{ anom: MlAnomaly; probs: ClassProb[] } | null> {
     if (!this.ready || !this.ae || !this.cls) return null;
     const win = samples.slice(-AE_WIN);
-    if (win.length < AE_WIN) return null;
+    if (win.length < AE_WIN || !hasRegularMinuteCadence(win, AE_WIN)) return null;
     const norm = makeNorm(base);
     const flat = win.flatMap((s) => normVec(s, norm));
 
@@ -695,7 +696,7 @@ export class VigiaEngine {
     // --- clasificador ---
     const win90 = samples.slice(-CLS_WIN);
     let probs: ClassProb[] = [];
-    if (win90.length >= CLS_WIN) {
+    if (win90.length >= CLS_WIN && hasRegularMinuteCadence(win90, CLS_WIN)) {
       const f = extractFeatures(win90, norm);
       const fx = tf.tensor2d([f]);
       const fy = this.cls.predict(fx) as tf.Tensor;
@@ -722,9 +723,8 @@ export class VigiaEngine {
     if (!this.ready || !this.fc) return null;
     const norm = makeNorm(base);
     const need = FC_INPUT * FC_MIN;
-    let buf = samples.slice(-need);
-    while (buf.length < need && buf.length > 0) buf = [buf[0], ...buf];
-    if (buf.length < need) return null;
+    const buf = samples.slice(-need);
+    if (buf.length < need || !hasRegularMinuteCadence(buf, need)) return null;
 
     let seq = aggregates(buf, norm); // [16][6] normalizado
     const blocks = Math.ceil(steps / FC_STEPS);
@@ -769,7 +769,7 @@ export class VigiaEngine {
 const f1 = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}`;
 
 function genericEvidence(cls: ClassId, win: Sample[]): string[] {
-  const slope = (k: VarKey) => linSlopePerHour(win.map((s, i) => ({ x: i, y: s[k] })));
+  const slope = (k: VarKey) => linSlopePerHour(win.map((s) => ({ x: s.m, y: s[k] })));
   const ptT = slope("pt"), pcT = slope("pc"), plT = slope("pl"), qT = slope("q");
   switch (cls) {
     case "liquidLoading":

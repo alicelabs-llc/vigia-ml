@@ -89,12 +89,18 @@ export function rulQuantile(tHours: number, p: number, eta: number, beta: number
 
 /** Minutos hacia atrás en que la condición se cumple de forma continua. */
 export function episodeAgeMin(samples: Sample[], key: VarKey, test: (v: number) => boolean): number {
-  let n = 0;
-  for (let i = samples.length - 1; i >= 0; i--) {
-    if (test(samples[i][key])) n++;
-    else break;
+  if (samples.length === 0) return 0;
+  const lastIndex = samples.length - 1;
+  if (!test(samples[lastIndex][key])) return 0;
+  const lastM = samples[lastIndex].m;
+  let firstM = lastM;
+  for (let i = lastIndex; i >= 0; i--) {
+    if (!test(samples[i][key])) break;
+    if (i < lastIndex && samples[i + 1].m - samples[i].m !== 1) break;
+    firstM = samples[i].m;
   }
-  return n;
+  // No atribuir duración a minutos sin telemetría entre dos muestras.
+  return Math.max(1, lastM - firstM + 1);
 }
 
 /** Minutos en plano (sensor congelado): tolerancia absoluta 0.2 (como N3). */
