@@ -84,6 +84,16 @@ describe("N4 · projections", () => {
     }
   });
 
+  it("no calcula proyecciones sin 240 muestras regulares", () => {
+    const w = new WellSim(cfg);
+    expect(projections(w.buf.slice(0, 100), w.base)).toEqual([]);
+    const irregular = w.buf.slice(-240).map((sample, i) => ({
+      ...sample,
+      m: sample.m + (i > 100 ? 1 : 0),
+    }));
+    expect(projections(irregular, w.base)).toEqual([]);
+  });
+
   it("umbral por defecto: pt = 82% de base, q = 78% de base", () => {
     const w = new WellSim(cfg);
     const rows = projections(w.buf, w.base);
@@ -177,7 +187,7 @@ describe("calidad de datos", () => {
     expect(simQuality.rows.every((row) => row.latency === null)).toBe(true);
 
     const now = Date.now();
-    const live = { ...w.last, ts: now - 5000, source: "opcua" as const };
+    const live = { ...w.last, ts: now, sourceTs: now - 5000, source: "opcua" as const };
     const liveQuality = dataQuality([live], now);
     expect(liveQuality.rows.every((row) => row.latency === 5)).toBe(true);
     expect(liveQuality.grade).toBe("D");
