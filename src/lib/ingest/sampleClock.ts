@@ -1,4 +1,4 @@
-import { VAR_KEYS, sanitizeSample } from "../sim";
+import { SIM_EPOCH, VAR_KEYS, sanitizeSample } from "../sim";
 import type { Sample, VarKey } from "../sim";
 import type { IngestSample } from "./opcuaBridge";
 
@@ -14,6 +14,8 @@ export interface SourceSampleUpdate {
  * cuenta cada tag como un minuto independiente.
  */
 export class SourceSampleAccumulator {
+  constructor(private readonly epochMs = SIM_EPOCH) {}
+
   private values: Partial<Record<VarKey, number>> = {};
   private lastMinute: number | null = null;
   private lastTs = 0;
@@ -41,6 +43,7 @@ export class SourceSampleAccumulator {
       this.lastMinute = minute;
       this.lastTs = Math.max(this.lastTs, input.ts);
       if (!VAR_KEYS.every((key) => this.values[key] !== undefined)) return null;
+      this.elapsedMin = minute - Math.floor(this.epochMs / 60000);
       this.ready = true;
       return this.makeUpdate("initial");
     }
