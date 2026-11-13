@@ -25,7 +25,7 @@
 // ---------------------------------------------------------------------------
 
 import { WebSocketServer } from "ws";
-import { normalizeDataValue, validateTagMap } from "./config.mjs";
+import { CLIENT_TAGS, normalizeDataValue, validateClientTagMap, validateTagMap } from "./config.mjs";
 
 // ----------------------------- configuración --------------------------------
 const args = process.argv.slice(2);
@@ -121,7 +121,7 @@ async function startOpcua(clientMap) {
         Broadcast((c) => c.send(JSON.stringify({
           op: "data",
           ts: sample.ts,
-          values: { [it.nodeId]: sample.value },
+          values: { [CLIENT_TAGS[it.key]]: sample.value },
         })));
       }),
     ),
@@ -162,16 +162,10 @@ wss.on("connection", (socket) => {
     }
     if (f.op === "subscribe" && f.tags && typeof f.tags === "object") {
       try {
-        const requestedMap = validateTagMap(f.tags, { requireAll: true });
-        if (DEMO) {
-          clientMap = validateTagMap({ ...fileMap, ...requestedMap }, { requireAll: true });
-        } else {
-          // Las suscripciones reales ya se crearon al arrancar con --map.
-          // No aceptar un mapa distinto que la sesión OPC-UA no está monitoreando.
-          const mismatch = Object.keys(fileMap).some((key) => requestedMap[key] !== fileMap[key]);
-          if (mismatch) throw new Error("el mapa del cliente no coincide con el mapa OPC-UA del servidor");
-          clientMap = fileMap;
-        }
+        // El navegador usa alias estables (PT-101, FT-301); el servidor
+        // traduce esos alias a NodeIds físicos mediante --map.
+        const requestedMap = validateClientTagMap(f.tags);
+        clientMap = requestedMap;
       } catch (e) {
         socket.send(JSON.stringify({ op: "error", msg: `suscripción rechazada: ${e.message}` }));
         return;

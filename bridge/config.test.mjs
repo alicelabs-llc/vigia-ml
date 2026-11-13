@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeDataValue, REQUIRED_TAGS, validateTagMap } from "./config.mjs";
+import { CLIENT_TAGS, normalizeDataValue, REQUIRED_TAGS, validateClientTagMap, validateTagMap } from "./config.mjs";
 
 const complete = {
   pt: "ns=2;s=Well.PT",
@@ -32,6 +32,12 @@ describe("validateTagMap", () => {
   it("rejects malformed NodeIds and trims valid values", () => {
     expect(() => validateTagMap({ pt: "not-a-node-id" })).toThrow(/NodeId inválido/);
     expect(validateTagMap({ pt: " ns=2;s=Well.PT " })).toEqual({ pt: "ns=2;s=Well.PT" });
+  });
+
+  it("validates the browser alias map separately from physical OPC-UA NodeIds", () => {
+    expect(validateClientTagMap(CLIENT_TAGS)).toEqual(CLIENT_TAGS);
+    expect(() => validateClientTagMap({ ...CLIENT_TAGS, pt: "ns=2;s=Well.PT" })).toThrow(/alias/);
+    expect(() => validateClientTagMap({ ...CLIENT_TAGS, extra: "EXTRA" })).toThrow(/desconocidas/);
   });
 
   it("discards bad-quality and invalid telemetry values", () => {

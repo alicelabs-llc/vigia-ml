@@ -174,7 +174,7 @@ npm run start:demo          # puente demo sin SCADA (solo necesita `ws`)
 #    URL ws://localhost:8082 → Conectar
 ```
 
-Para un servidor real, define `OPC_ENDPOINT` en el entorno del proceso y ejecuta `node opcua-bridge.mjs --map mapa.json`. El mapa de seis variables es obligatorio y autoritativo en modo real; las suscripciones del navegador deben coincidir. El puente escucha en `127.0.0.1` por defecto y descarta lecturas con calidad OPC-UA no válida. No expongas el socket directamente: usa VPN o un gateway `wss://` autenticado y reglas de firewall. Detalles en **[bridge/README.md](bridge/README.md)**.
+Para un servidor real, define `OPC_ENDPOINT` en el entorno del proceso y ejecuta `node opcua-bridge.mjs --map mapa.json`. El mapa de seis variables es obligatorio y autoritativo en modo real; el navegador usa alias de telemetría estables que el puente traduce a los NodeIds físicos. El puente escucha en `127.0.0.1` por defecto y descarta lecturas con calidad OPC-UA no válida. No expongas el socket directamente: usa VPN o un gateway `wss://` autenticado y reglas de firewall. Detalles en **[bridge/README.md](bridge/README.md)**.
 
 ## Qué hay de nuevo en v0.7.0
 
