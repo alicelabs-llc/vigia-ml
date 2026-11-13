@@ -14,7 +14,7 @@ El navegador **no puede hablar el protocolo binario OPC-UA** (TCP 4840, codifica
 | Dirección | Frame | Significado |
 |---|---|---|
 | puente → consola | `{"op":"hello","msg":"..."}` | saludo tras conectar |
-| puente → consola | `{"op":"data","ts":...,"values":{"ns=2;s=Well.PT":123.4}}` | lecturas etiquetadas por NodeId; `ts` usa timestamp de origen cuando existe |
+| puente → consola | `{"op":"data","ts":...,"values":{"PT-101":123.4}}` | lecturas etiquetadas por NodeId; `ts` usa timestamp de origen cuando existe |
 | puente → consola | `{"op":"status","state":"degraded","msg":"..."}` | fuente degradada |
 | puente → consola | `{"op":"error","msg":"..."}` | error de lectura |
 | consola → puente | `{"op":"subscribe","tags":{"pt":"ns=2;s=Well.PT",...},"intervalMs":15000}` | mapa de variables |
@@ -74,7 +74,7 @@ de choke. El cliente descarta nodos fuera del mapa.
 - El puente rechaza cualquier host que no sea loopback. Para acceso desde otra máquina, usa un reverse proxy local con `wss://` (TLS), autenticación y reglas de firewall, o una VPN que termine en ese proxy. No expongas el proceso Node directamente.
 - Proporciona `OPC_ENDPOINT` mediante el entorno del proceso; evita incluir usuario/contraseña en argumentos de línea de comandos que puedan aparecer en listados de procesos.
 - Usa credenciales OPC-UA dedicadas de solo lectura para VIGÍA y un mapa de nodos explícito. En modo real, el mapa del servidor es obligatorio y autoritativo; el mapa enviado por el navegador debe coincidir exactamente.
-- El mapa de nodos debe contener las seis variables `pt`, `pc`, `pl`, `temp`, `q` y `choke`, con NodeIds OPC-UA válidos. Se valida al arrancar y no se permite que el navegador cambie las suscripciones reales.
+- El mapa de nodos del servidor debe contener las seis variables `pt`, `pc`, `pl`, `temp`, `q` y `choke`, con NodeIds OPC-UA válidos. Se valida al arrancar. El navegador usa alias lógicos estables (PT-101, PT-102, PT-108, TT-201, FT-301 y FV-401); el puente traduce cada alias al NodeId configurado y no revela NodeIds físicos al navegador.
 - Cada muestra pasa por `sanitizeSample()` en el navegador: valores fuera de
   rango físico se sustituyen antes de llegar a los modelos.
 
