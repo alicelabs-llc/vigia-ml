@@ -91,8 +91,14 @@ export function AnomalyPanel({ result, ml = false }: { result: AnomalyResult; ml
 export function DataQualityPanel({ dq }: { dq: DataQuality }) {
   const gradeColor = dq.grade === "A" ? "#3fd0b6" : dq.grade === "B" ? "#f2b33d" : dq.grade === "C" ? "#f2873d" : "#f26d5f";
   const checklist: { t: string; state: "ok" | "pending" | "sim" }[] = [
-    { t: "Telemetría 1 min desde PLC/SCADA", state: "ok" },
-    { t: "Dataset etiquetado sintético (5 clases)", state: "ok" },
+    {
+      t: dq.regularHistory ? `Historial continuo: ${dq.sampleCount}/240 min` : `Historial incompleto: ${dq.sampleCount}/240 min`,
+      state: dq.regularHistory ? "ok" : "pending",
+    },
+    {
+      t: dq.timestampMode === "source" ? "Timestamp fiable del PLC/SCADA" : dq.timestampMode === "simulated" ? "Reloj de simulación" : "Timestamp de origen no disponible",
+      state: dq.timestampMode === "source" ? "ok" : dq.timestampMode === "simulated" ? "sim" : "pending",
+    },
     { t: "Integración con historiador (PI/OSI)", state: "sim" },
   ];
 
