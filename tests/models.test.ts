@@ -208,6 +208,19 @@ describe("calidad de datos", () => {
     expect(liveQuality.verdict).toMatch(/240 muestras/);
   });
 
+  it("no confunde estabilidad estadística con timestamp de origen verificado", () => {
+    const w = new WellSim(cfg);
+    const receiveOnly = w.buf.slice(-240).map((sample) => ({
+      ...sample,
+      source: "opcua" as const,
+      sourceTs: undefined,
+    }));
+    const dq = dataQuality(receiveOnly);
+    expect(dq.timestampMode).toBe("receive");
+    expect(dq.regularHistory).toBe(true);
+    expect(dq.verdict).toMatch(/latencia real no puede verificarse/i);
+  });
+
   it("devuelve calidad D sin datos", () => {
     const dq = dataQuality([]);
     expect(dq.grade).toBe("D");

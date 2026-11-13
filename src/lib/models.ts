@@ -604,10 +604,12 @@ export function dataQuality(samples: Sample[], now = Date.now()): DataQuality {
 
   const worst = [...rows].sort((a, b) => b.flat - a.flat)[0];
   const verdict = !regularHistory
-    ? "Historial insuficiente o discontinuo: se requieren 240 muestras consecutivas (una por minuto) para el análisis temporal completo."
-    : grade === "A" || grade === "B"
-      ? "Telemetría apta para forecasting (N1) y detección de anomalías (N2)."
-      : `Calidad degradada por ${VAR_META[worst.key].tag}: corregir antes de confiar en los modelos.`;
+    ? "Historial insuficiente o discontinuo: se requieren 240 muestras consecutivas (una por minuto) para caracterizar la ventana."
+    : timestampMode === "receive"
+      ? "Ventana temporal completa, pero sin timestamp de origen: la latencia real no puede verificarse."
+      : grade === "A" || grade === "B"
+        ? "Señal estadísticamente estable en esta ventana. Este puntaje no valida calibración, exactitud del sensor ni aptitud de un modelo."
+        : `Señal degradada en ${VAR_META[worst.key].tag}: revisar la calidad de la medición y su procedencia.`;
 
   return { overall, grade, rows, verdict, sampleCount: win.length, regularHistory, timestampMode };
 }
