@@ -39,3 +39,26 @@ export function normalizeDataValue(dataValue, now = Date.now()) {
   const candidateTs = dataValue.sourceTimestamp instanceof Date ? dataValue.sourceTimestamp.getTime() : now;
   return { value, ts: Number.isFinite(candidateTs) ? candidateTs : now };
 }
+
+/** Alias de telemetría estable que espera el cliente de VIGÍA. */
+export const CLIENT_TAGS = Object.freeze({
+  pt: "PT-101",
+  pc: "PT-102",
+  pl: "PT-108",
+  temp: "TT-201",
+  q: "FT-301",
+  choke: "FV-401",
+});
+
+/** Valida el mapa lógico del navegador (alias), distinto al mapa físico NodeId. */
+export function validateClientTagMap(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new TypeError("el mapa del cliente debe ser un objeto JSON");
+  }
+  const keys = Object.keys(input);
+  const unknown = keys.filter((key) => !REQUIRED_TAGS.includes(key));
+  if (unknown.length) throw new Error(`variables desconocidas: ${unknown.join(", ")}`);
+  const missing = REQUIRED_TAGS.filter((key) => input[key] !== CLIENT_TAGS[key]);
+  if (missing.length) throw new Error(`alias de cliente ausentes o incorrectos: ${missing.join(", ")}`);
+  return { ...CLIENT_TAGS };
+}
