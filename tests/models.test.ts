@@ -162,6 +162,17 @@ describe("N5 · recommend", () => {
     expect(["ALTA", "MEDIA", "RUTINA"]).toContain(recs[0].prio);
   });
 
+  it("presenta el riesgo de proyección como revisión, no como orden de setpoint", () => {
+    const w = new WellSim(cfg);
+    const risky = [
+      { key: "pt", thr: 400, condition: "P·tubing < 400 psi", prob: 0.9, hoursEst: 1 },
+    ] as Parameters<typeof recommend>[1];
+    const recs = recommend([], risky, w.buf);
+    expect(recs[0].text).toMatch(/revisión del responsable de operación/i);
+    expect(recs[0].text).toMatch(/no debe ejecutarse automáticamente/i);
+    expect(recs[0].text).not.toMatch(/Ajustar choke/i);
+  });
+
   it("con liquid loading sugiere descarga de líquidos (ALTA)", () => {
     const w = new WellSim({ ...cfg, seed: 1103, script: [{ at: 100, s: "liquidLoading" }], preRun: 480 });
     const s = w.buf.slice(-240);
