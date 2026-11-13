@@ -19,7 +19,8 @@ export type Severity = "info" | "ok" | "warn" | "alarm";
 
 export interface Sample {
   m: number; // minuto transcurrido (simulado o desde la primera muestra externa)
-  ts?: number; // timestamp de origen, epoch ms; ausente en el simulador
+  ts?: number; // timestamp para agrupar muestras, epoch ms
+  sourceTs?: number; // timestamp de origen fiable; ausente si el servidor no lo proporciona
   source?: "opcua";
   pt: number;
   pc: number;
@@ -68,6 +69,7 @@ export function sanitizeSample(s: Sample): Sample {
   }
   if (!Number.isFinite(out.m)) out.m = 0;
   if (out.ts !== undefined && (!Number.isFinite(out.ts) || out.ts <= 0)) delete out.ts;
+  if (out.sourceTs !== undefined && (!Number.isFinite(out.sourceTs) || out.sourceTs <= 0)) delete out.sourceTs;
   if (out.source !== undefined && out.source !== "opcua") delete out.source;
   return out;
 }
