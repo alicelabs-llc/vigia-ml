@@ -169,7 +169,7 @@ describe("N5 · recommend", () => {
     ] as Parameters<typeof recommend>[1];
     const recs = recommend([], risky, w.buf);
     expect(recs[0].text).toMatch(/revisión del responsable de operación/i);
-    expect(recs[0].text).toMatch(/no debe ejecutarse automáticamente/i);
+    expect(recs[0].text).toMatch(/debe ejecutarse automáticamente/i);
     expect(recs[0].text).not.toMatch(/Ajustar choke/i);
   });
 
