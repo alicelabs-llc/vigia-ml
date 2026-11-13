@@ -190,6 +190,8 @@ describe("calidad de datos", () => {
     expect(["A", "B"]).toContain(dq.grade);
     expect(dq.overall).toBeGreaterThanOrEqual(75);
     expect(dq.rows).toHaveLength(6);
+    expect(dq.sampleCount).toBeGreaterThan(0);
+    expect(dq.timestampMode).toBe("simulated");
   });
 
   it("no inventa latencia para el simulador y mide la latencia real OPC-UA", () => {
@@ -201,6 +203,7 @@ describe("calidad de datos", () => {
     const live = { ...w.last, ts: now, sourceTs: now - 5000, source: "opcua" as const };
     const liveQuality = dataQuality([live], now);
     expect(liveQuality.rows.every((row) => row.latency === 5)).toBe(true);
+    expect(liveQuality.timestampMode).toBe("source");
     expect(liveQuality.grade).toBe("D");
     expect(liveQuality.verdict).toMatch(/240 muestras/);
   });
@@ -210,6 +213,12 @@ describe("calidad de datos", () => {
     expect(dq.grade).toBe("D");
     expect(dq.overall).toBe(0);
     expect(dq.rows).toHaveLength(6);
+    expect(dq.sampleCount).toBe(0);
+    expect(dq.timestampMode).toBe("none");
+    expect(dq.regularHistory).toBe(false);
+    expect(dq.sampleCount).toBe(0);
+    expect(dq.timestampMode).toBe("none");
+    expect(dq.regularHistory).toBe(false);
   });
 
   it("calcula tendencias con minutos transcurridos, no con cantidad de frames", () => {
