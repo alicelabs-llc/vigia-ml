@@ -92,7 +92,7 @@ export function SetpointAdvisorCard({
       <div className="panel corners p-3.5 flex-1 min-w-[280px] rise" style={{ animationDelay: "220ms" }}>
         <SectionHead level="SETPOINTS" title="Asesor de apertura óptima" accent={ACCENT} />
         <p className="text-[11px] text-fg3 leading-relaxed font-mono">
-          ASESOR EN ESPERA — se requieren 240 muestras consecutivas con calidad A/B. No se muestran sugerencias de apertura con historial insuficiente o discontinuo.
+          ASESOR EN ESPERA — se requieren 240 muestras consecutivas, calidad A/B y timestamp de origen fiable en modo real. No se muestran sugerencias con historial o reloj no verificados.
         </p>
       </div>
     );
