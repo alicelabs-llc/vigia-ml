@@ -456,7 +456,7 @@ export interface Recommendation {
 export function recommend(
   diag: Hypothesis[],
   proj: ProjRow[],
-  samples: Sample[],
+  _samples: Sample[],
 ): Recommendation[] {
   const recs: Recommendation[] = [];
   const top = diag.filter((d) => d.id !== "normal").slice(0, 2);
