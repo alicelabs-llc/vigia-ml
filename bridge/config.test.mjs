@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { REQUIRED_TAGS, validateTagMap } from "./config.mjs";
+import { normalizeDataValue, REQUIRED_TAGS, validateTagMap } from "./config.mjs";
 
 const complete = {
   pt: "ns=2;s=Well.PT",
@@ -32,6 +32,18 @@ describe("validateTagMap", () => {
   it("rejects malformed NodeIds and trims valid values", () => {
     expect(() => validateTagMap({ pt: "not-a-node-id" })).toThrow(/NodeId inválido/);
     expect(validateTagMap({ pt: " ns=2;s=Well.PT " })).toEqual({ pt: "ns=2;s=Well.PT" });
+  });
+
+  it("discards bad-quality and invalid telemetry values", () => {
+    expect(normalizeDataValue({ statusCode: { isGood: () => false }, value: { value: 12 } })).toBeNull();
+    expect(normalizeDataValue({ value: { value: NaN } })).toBeNull();
+    expect(normalizeDataValue({ value: { value: "12" } })).toBeNull();
+  });
+
+  it("preserves source timestamps and safely falls back", () => {
+    const ts = new Date("2026-11-12T12:00:00.000Z").getTime();
+    expect(normalizeDataValue({ value: { value: 12 }, sourceTimestamp: new Date(ts) })).toEqual({ value: 12, ts });
+    expect(normalizeDataValue({ value: { value: 12 }, sourceTimestamp: new Date("invalid") }, 123)).toEqual({ value: 12, ts: 123 });
   });
 
   it("requires all six process variables for a full real-world subscription", () => {
