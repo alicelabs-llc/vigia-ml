@@ -213,8 +213,12 @@ describe("calidad de datos", () => {
   it("bloquea la confianza temporal cuando OPC-UA no proporciona timestamps de origen", () => {
     const w = new WellSim(cfg);
     const now = Date.now();
-    const receiveOnly = { ...w.last, ts: now, source: "opcua" as const };
-    const dq = dataQuality([receiveOnly], now);
+    const receiveOnly = w.buf.slice(-240).map((sample) => ({
+      ...sample,
+      ts: now,
+      source: "opcua" as const,
+    }));
+    const dq = dataQuality(receiveOnly, now);
     expect(dq.timestampMode).toBe("receive");
     expect(dq.verdict).toMatch(/timestamps fiables del servidor/i);
   });
