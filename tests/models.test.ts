@@ -11,6 +11,7 @@ import {
   diagnose,
   recommend,
   dataQuality,
+  trendPerHour,
 } from "../src/lib/models";
 import { WellSim } from "../src/lib/sim";
 import type { WellCfg, Sample } from "../src/lib/sim";
@@ -170,12 +171,41 @@ describe("calidad de datos", () => {
     expect(dq.rows).toHaveLength(6);
   });
 
+  it("no inventa latencia para el simulador y mide la latencia real OPC-UA", () => {
+    const w = new WellSim(cfg);
+    const simQuality = dataQuality(w.buf.slice(-260));
+    expect(simQuality.rows.every((row) => row.latency === null)).toBe(true);
+
+    const now = Date.now();
+    const live = { ...w.last, ts: now - 5000, source: "opcua" as const };
+    const liveQuality = dataQuality([live], now);
+    expect(liveQuality.rows.every((row) => row.latency === 5)).toBe(true);
+    expect(liveQuality.grade).toBe("D");
+    expect(liveQuality.verdict).toMatch(/240 muestras/);
+  });
+
+  it("devuelve calidad D sin datos", () => {
+    const dq = dataQuality([]);
+    expect(dq.grade).toBe("D");
+    expect(dq.overall).toBe(0);
+    expect(dq.rows).toHaveLength(6);
+  });
+
+  it("calcula tendencias con minutos transcurridos, no con cantidad de frames", () => {
+    const samples: Sample[] = [
+      { m: 0, pt: 100, pc: 100, pl: 100, temp: 20, q: 100, choke: 50 },
+      { m: 1, pt: 101, pc: 100, pl: 100, temp: 20, q: 100, choke: 50 },
+      { m: 3, pt: 103, pc: 100, pl: 100, temp: 20, q: 100, choke: 50 },
+    ];
+    expect(trendPerHour(samples, "pt", 3)).toBeCloseTo(60, 6);
+  });
+
   it("cada fila es finita y coherente", () => {
     const w = new WellSim(cfg);
     const dq = dataQuality(w.buf.slice(-260));
     for (const r of dq.rows) {
       expect(Number.isFinite(r.flat)).toBe(true);
-      expect(Number.isFinite(r.latency)).toBe(true);
+      if (r.latency !== null) expect(Number.isFinite(r.latency)).toBe(true);
       expect(r.spikes).toBeGreaterThanOrEqual(0);
       expect(r.flat).toBeGreaterThanOrEqual(0);
     }
