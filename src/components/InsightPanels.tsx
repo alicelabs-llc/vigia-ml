@@ -160,9 +160,9 @@ export function DataQualityPanel({ dq }: { dq: DataQuality }) {
         ))}
       </div>
       <p className="mt-2 text-[9.5px] text-fg3 leading-snug">
-        El clasificador (N3) entrena con ventanas etiquetadas del simulador: para un modelo
-        supervisado “falla en X horas” con datos reales se requieren históricos de intervenciones
-        documentadas.
+        El score resume estabilidad estadística de la ventana; no certifica calibración,
+        exactitud metrológica ni aptitud predictiva. Los modelos supervisados con datos reales
+        requieren históricos etiquetados y validados.
       </p>
     </div>
   );
