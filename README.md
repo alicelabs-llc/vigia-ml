@@ -238,3 +238,8 @@ Este proyecto busca validación de ingenieros de producción, analistas de opera
 <div align="center">
 <sub>VIGÍA ML v0.11.0 · Telemetría sintética con fines de demostración · Entrena, vigila, pregunta.</sub>
 </div>
+
+
+## Seguridad de dependencias
+
+El pipeline de CI ejecuta `npm audit --audit-level=high` antes de typecheck, pruebas y build.

@@ -2,7 +2,7 @@
   "name": "vigia-ml",
   "private": true,
   "version": "0.11.0",
-  "description": "Consola predictiva de pozos de gas con machine learning en el navegador: LSTM de pron\u00f3stico, autoencoder de anomal\u00edas y clasificador de diagn\u00f3stico (TensorFlow.js).",
+  "description": "Consola predictiva de pozos de gas con machine learning en el navegador: LSTM de pronóstico, autoencoder de anomalías y clasificador de diagnóstico (TensorFlow.js).",
   "type": "module",
   "license": "AL-1.0",
   "scripts": {
@@ -25,7 +25,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "tailwindcss": "^4.1.7",
     "typescript": "^5.7.0",
-    "vite": "^6.3.5",
-    "vitest": "^3.2.7"
+    "vite": "^6.4.4",
+    "vitest": "^4.1.12"
   }
 }
