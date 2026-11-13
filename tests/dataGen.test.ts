@@ -60,6 +60,18 @@ describe("extractFeatures", () => {
     });
   });
 
+  it("las pendientes usan el tiempo transcurrido cuando hay huecos", () => {
+    const w = new WellSim(cfg);
+    const n = makeNorm(w.base);
+    const regular = Array.from({ length: 90 }, (_, i) => ({
+      ...w.buf[i], m: i, pt: 600 + i * 0.2,
+    }));
+    const sparse = regular.map((sample) => ({ ...sample, m: sample.m * 2 }));
+    const fRegular = extractFeatures(regular, n);
+    const fSparse = extractFeatures(sparse, n);
+    expect(fRegular[0]).toBeCloseTo(fSparse[0] * 2, 2);
+  });
+
   it("ventana plana produce ptFlat alto (sensor congelado)", () => {
     const w = new WellSim(cfg);
     const n = makeNorm(w.base);
