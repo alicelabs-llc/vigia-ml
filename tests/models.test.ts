@@ -190,19 +190,33 @@ describe("calidad de datos", () => {
     expect(["A", "B"]).toContain(dq.grade);
     expect(dq.overall).toBeGreaterThanOrEqual(75);
     expect(dq.rows).toHaveLength(6);
+    expect(dq.timestampMode).toBe("receive");
+    expect(dq.regularHistory).toBe(false);
   });
 
   it("no inventa latencia para el simulador y mide la latencia real OPC-UA", () => {
     const w = new WellSim(cfg);
     const simQuality = dataQuality(w.buf.slice(-260));
     expect(simQuality.rows.every((row) => row.latency === null)).toBe(true);
+    expect(simQuality.timestampMode).toBe("simulated");
+    expect(simQuality.regularHistory).toBe(true);
 
     const now = Date.now();
     const live = { ...w.last, ts: now, sourceTs: now - 5000, source: "opcua" as const };
     const liveQuality = dataQuality([live], now);
     expect(liveQuality.rows.every((row) => row.latency === 5)).toBe(true);
+    expect(liveQuality.timestampMode).toBe("source");
     expect(liveQuality.grade).toBe("D");
     expect(liveQuality.verdict).toMatch(/240 muestras/);
+  });
+
+  it("bloquea la confianza temporal cuando OPC-UA no proporciona timestamps de origen", () => {
+    const w = new WellSim(cfg);
+    const now = Date.now();
+    const receiveOnly = { ...w.last, ts: now, source: "opcua" as const };
+    const dq = dataQuality([receiveOnly], now);
+    expect(dq.timestampMode).toBe("receive");
+    expect(dq.verdict).toMatch(/timestamps fiables del servidor/i);
   });
 
   it("devuelve calidad D sin datos", () => {
