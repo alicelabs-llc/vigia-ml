@@ -30,3 +30,12 @@ export function validateTagMap(input, { requireAll = false } = {}) {
   if (!Object.keys(result).length) throw new Error("el mapa no contiene variables");
   return result;
 }
+
+/** Normalize an OPC-UA DataValue; null means discard it. */
+export function normalizeDataValue(dataValue, now = Date.now()) {
+  if (dataValue?.statusCode && typeof dataValue.statusCode.isGood === "function" && !dataValue.statusCode.isGood()) return null;
+  const value = dataValue?.value?.value;
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  const candidateTs = dataValue.sourceTimestamp instanceof Date ? dataValue.sourceTimestamp.getTime() : now;
+  return { value, ts: Number.isFinite(candidateTs) ? candidateTs : now };
+}
